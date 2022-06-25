@@ -3,22 +3,25 @@
 namespace App\Http\Controllers\Api;
 
 use Exception;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;
-use App\Repository\User\UserContract;
+use Illuminate\Support\Facades\Hash;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
+use App\Exceptions\NoAccountFoundException;
+use App\Exceptions\InvalidCredentialException;
 
 class AuthController extends Controller
 {
-    private UserContract $userContract;
+    private $user;
 
     /**
-     * @param  UserContract  $userContract
+     * @param User $user
      */
-    public function __construct(UserContract $userContract)
+    public function __construct(User $user)
     {
-        $this->userContract = $userContract;
+        $this->user = $user;
     }
 
     /**
@@ -30,9 +33,22 @@ class AuthController extends Controller
     public function login(LoginRequest $request): mixed
     {
         try {
+            $user = $this->user->whereEmail($request->email)->first();
+
+            if (!$user) {
+                throw new NoAccountFoundException;
+            }
+
+            if (!Hash::check($request->password, $user->password)) {
+                throw new InvalidCredentialException;
+            }
+
             $data = [
                 'message' => "You are successfully logged in!",
-                'data'    => $this->userContract->login($request->email, $request->password),
+                'data'    => [
+                    'user'         => $user,
+                    'access_token' => $user->createToken($request->email)->plainTextToken,
+                ],
             ];
 
             return $this->successResponse($data);
@@ -50,6 +66,7 @@ class AuthController extends Controller
     {
         try {
             request()->user()->currentAccessToken()->delete();
+
             return $this->successResponse([
                 'message' => "You are successfully logged out.",
             ]);
@@ -66,13 +83,42 @@ class AuthController extends Controller
      */
     public function register(RegisterRequest $request): mixed
     {
+        $data = $request->all();
+        if($data['password']!==$data['password_confirmation']){
+            return $this->errorResponse([
+                'message' => "Password and confirm password should be same.",
+            ]);
+        } 
+
+        unset($data['password_confirmation']);
+
+        if(!empty($this->getByEmail($data['email']))){
+            return $this->errorResponse([
+                'message' => "User account already exist with same user.",
+            ]);
+        }  
+        
         try {
+            $data['password'] = bcrypt($data['password']);
+            $user = $this->user->updateOrCreate($data);
+
             return $this->successResponse([
                 'message' => "You are successfully registered with us.",
-                'data'    => $this->userContract->create($request->all()),
+                'data'    => $user,
             ]);
         } catch (Exception $e) {
             return $this->errorMessage($e);
         }
+    }
+
+    /**
+     * Get user by email
+     * 
+     * @param $email
+     * @return User|empty
+    */
+    public function getByEmail(string $email): User | null
+    {
+        return $this->user->whereEmail($email)->first();
     }
 }
