@@ -27,4 +27,6 @@ class Category extends Model
         return LogOptions::defaults()
         ->logOnly(['name']);
     }
+
+    public function products() {return $this->hasMany(Product::class, 'category_id');}
 }

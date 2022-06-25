@@ -3,22 +3,22 @@
 namespace App\Http\Controllers\Api\Category;
 
 use Exception;
+use App\Models\Category;
 use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;
-use App\Repository\Category\CategoryContract;
 use App\Http\Requests\Category\CategoryRequest;
 
 class CategoryController extends Controller
 {
 
-    private CategoryContract $categoryContract;
+    private Category $category;
 
     /**
-     * @param  CategoryContract  $categoryContract
+     * @param  Category $category
      */
-    public function __construct(CategoryContract $categoryContract)
+    public function __construct(Category $category)
     {
-        $this->categoryContract = $categoryContract;
+        $this->category = $category;
     }
 
     /**
@@ -30,7 +30,7 @@ class CategoryController extends Controller
     public function delete(int $id): mixed
     {
         try {
-            $this->categoryContract->delete($id);
+            $this->category->delete($id);
             return $this->successResponse(['message' => 'Category removed successfully']);
         } catch (Exception $e) {
             return $this->errorMessage($e);
@@ -48,7 +48,7 @@ class CategoryController extends Controller
         try {
             return $this->successResponse([
                 'message' => 'Category fetched successfully',
-                'data'    => $this->categoryContract->all(),
+                'data'    => $this->category->with('products')->paginate(),
             ]);
         } catch (Exception $e) {
             return $this->errorMessage($e);
@@ -66,7 +66,7 @@ class CategoryController extends Controller
         try {
             return $this->successResponse([
                 'message' => "Category details fetched successfully",
-                'data'    => $this->categoryContract->getById($id),
+                'data'    => $this->category->with('products')->findOrFail($id),
             ]);
         } catch (Exception $e) {
             return $this->errorMessage($e);
@@ -84,7 +84,7 @@ class CategoryController extends Controller
         try {
             return $this->successResponse([
                 'message' => "Category created successfully",
-                'data'    => $this->categoryContract->create($request->all()),
+                'data'    => $this->category->create($request->all()),
             ]);
         } catch (Exception $e) {
             return $this->errorMessage($e);
@@ -99,11 +99,20 @@ class CategoryController extends Controller
      * @return JsonResponse|mixed
      */
     public function update(int $id, CategoryRequest $request): mixed
-    {
+    {        
         try {
+            $category = $this->category->with('products')->findOrFail($id);
+
+            if(empty($category)) {
+                return $this->errorResponse([
+                    'message' => "Category not exist with the requested id.",
+                ]);
+            }
+
+
             return $this->successResponse([
                 'message' => "Category updated successfully",
-                'data'    => $this->categoryContract->update($id, $request->all()),
+                'data'    => $category->update($request->all()),
             ]);
         } catch (Exception $e) {
             return $this->errorMessage($e);
