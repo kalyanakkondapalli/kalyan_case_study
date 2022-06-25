@@ -7,8 +7,6 @@ use Illuminate\Support\ServiceProvider;
 use App\Repository\Cart\CartRepository;
 use App\Repository\Product\ProductContract;
 use App\Repository\Product\ProductRepository;
-use App\Repository\Category\CategoryContract;
-use App\Repository\Category\CategoryRepository;
 
 class RepositoryProvider extends ServiceProvider
 {
