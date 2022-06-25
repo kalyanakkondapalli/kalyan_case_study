@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Api\Product;
 
 use Exception;
+use App\Models\Product;
 use App\Traits\FileUpload;
 use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;
-use App\Repository\Product\ProductContract;
 use App\Http\Requests\Product\ProductCreateRequest;
 use App\Http\Requests\Product\ProductUpdateRequest;
 
@@ -14,14 +14,14 @@ class ProductController extends Controller
 {
     use FileUpload;
 
-    private ProductContract $productContract;
+    private Product $product;
 
     /**
-     * @param  ProductContract  $productContract
+     * @param  Product  $product
      */
-    public function __construct(ProductContract $productContract)
+    public function __construct(Product $product)
     {
-        $this->productContract = $productContract;
+        $this->product = $product;
     }
 
     /**
@@ -33,7 +33,9 @@ class ProductController extends Controller
     public function delete(int $id): mixed
     {
         try {
-            $this->productContract->delete($id);
+            $product = $this->getById($id);
+
+            $product->delete($id);
             return $this->successResponse(['message' => 'Product removed successfully']);
         } catch (Exception $e) {
             return $this->errorMessage($e);
@@ -51,7 +53,7 @@ class ProductController extends Controller
         try {
             return $this->successResponse([
                 'message' => 'Products fetched successfully',
-                'data'    => $this->productContract->all(['category']),
+                'data'    => $this->product->with('category')->paginate(),
             ]);
         } catch (Exception $e) {
             return $this->errorMessage($e);
@@ -69,7 +71,7 @@ class ProductController extends Controller
         try {
             return $this->successResponse([
                 'message' => "Product details fetched successfully",
-                'data'    => $this->productContract->getById($id, ['category']),
+                'data'    => $this->getById($id, ['category']),
             ]);
         } catch (Exception $e) {
             return $this->errorMessage($e);
@@ -87,9 +89,10 @@ class ProductController extends Controller
         try {
             $path = $this->upload($request->file('product_image'));
             $data = $request->except('product_image');
+
             return $this->successResponse([
                 'message' => "Product created successfully",
-                'data'    => $this->productContract->create(array_merge($data, ['product_image' => $path])),
+                'data'    => $this->product->create(array_merge($data, ['product_image' => $path])),
             ]);
         } catch (Exception $e) {
             return $this->errorMessage($e);
@@ -105,6 +108,14 @@ class ProductController extends Controller
      */
     public function update(ProductUpdateRequest $request, int $id): mixed
     {
+        $product = $this->getById($id);
+
+        if(empty($category)) {
+            return $this->errorResponse([
+                'message' => "Product not exist with the requested id.",
+            ]);
+        }
+
         try {
             $data = $request->except('product_image');
 
@@ -114,10 +125,15 @@ class ProductController extends Controller
             }
             return $this->successResponse([
                 'message' => "Product updated successfully",
-                'data'    => $this->productContract->update($id, $data),
+                'data'    => tap($product)->update($data),
             ]);
         } catch (Exception $e) {
             return $this->errorMessage($e);
         }
+    }
+
+    public function getById(int $id, array $relations = []): mixed
+    {
+        return $this->product->with($relations)->findOrFail($id);
     }
 }

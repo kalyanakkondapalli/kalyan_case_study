@@ -30,7 +30,11 @@ class CategoryController extends Controller
     public function delete(int $id): mixed
     {
         try {
-            $this->category->delete($id);
+            $category = $this->getById($id, ['products']);
+
+            $category->products()->delete();
+
+            $category->delete();
             return $this->successResponse(['message' => 'Category removed successfully']);
         } catch (Exception $e) {
             return $this->errorMessage($e);
@@ -66,7 +70,7 @@ class CategoryController extends Controller
         try {
             return $this->successResponse([
                 'message' => "Category details fetched successfully",
-                'data'    => $this->category->with('products')->findOrFail($id),
+                'data'    => $this->getById($id, ['products']),
             ]);
         } catch (Exception $e) {
             return $this->errorMessage($e);
@@ -101,7 +105,7 @@ class CategoryController extends Controller
     public function update(int $id, CategoryRequest $request): mixed
     {        
         try {
-            $category = $this->category->with('products')->findOrFail($id);
+            $category = $this->getById($id, ['products']);
 
             if(empty($category)) {
                 return $this->errorResponse([
@@ -117,5 +121,10 @@ class CategoryController extends Controller
         } catch (Exception $e) {
             return $this->errorMessage($e);
         }
+    }
+
+    public function getById(int $id, array $relations = []): mixed
+    {
+        return $this->category->with($relations)->findOrFail($id);
     }
 }
