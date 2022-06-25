@@ -100,7 +100,7 @@ class AuthController extends Controller
         
         try {
             $data['password'] = bcrypt($data['password']);
-            $user = $this->user->updateOrCreate($data);
+            $user = $this->user->create($data);
 
             return $this->successResponse([
                 'message' => "You are successfully registered with us.",
